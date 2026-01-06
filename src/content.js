@@ -203,11 +203,53 @@
             const rightSection = document.querySelector(Selectors.headerRightSection);
             if (!rightSection) return;
 
-            rightSection.insertBefore(btn, syncIndicator);
+            // 1. Check/Inject Move Button
+            let btn = rightSection.querySelector('.move-to-folder-btn');
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.className = 'move-to-folder-btn';
+                btn.innerHTML = `${Icons.move} Move to`;
+                btn.style.zIndex = '9999';
 
-            // Immediately set status if we have data
-            if (this.lastSynced) {
-                this.updateSyncStatus('saved', { lastSynced: this.lastSynced });
+                btn.addEventListener('click', (e) => {
+                    console.log('Gemini Folders: Move button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.showFolderDropdown(btn);
+                });
+
+                // Insert into DOM
+                rightSection.insertBefore(btn, rightSection.firstChild);
+                this.updateCurrentChatTitle();
+            }
+
+            // 2. Check/Inject Sync Indicator
+            let syncIndicator = rightSection.querySelector('.sync-status-indicator');
+            if (!syncIndicator) {
+                syncIndicator = document.createElement('div');
+                syncIndicator.className = 'sync-status-indicator saved'; // Default
+                syncIndicator.innerHTML = Icons.cloud_done;
+
+                // Use cached Last Synced if available
+                if (this.lastSynced) {
+                    const timestamp = new Date(this.lastSynced).toLocaleTimeString();
+                    syncIndicator.title = `Folders are synced (Last: ${timestamp})`;
+                } else {
+                    syncIndicator.title = "Folders are synced";
+                }
+
+                // Place indicator to the RIGHT of the move button
+                // DOM Order: [Button] [Indicator]
+                if (btn.nextSibling) {
+                    rightSection.insertBefore(syncIndicator, btn.nextSibling);
+                } else {
+                    rightSection.appendChild(syncIndicator);
+                }
+
+                // Initial State Update
+                if (this.lastSynced) {
+                    this.updateSyncStatus('saved', { lastSynced: this.lastSynced });
+                }
             }
         }
 
