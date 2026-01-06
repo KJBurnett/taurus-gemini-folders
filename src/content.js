@@ -28,6 +28,7 @@
             this.currentChatId = null;
             this.currentChatTitle = null;
             this.expandedFolders = new Set();
+            this.lastSynced = null; // Cache for UI
         }
 
         async init() {
@@ -42,13 +43,23 @@
         }
 
         setupStorageListeners() {
-            window.addEventListener('gemini-storage-saving', () => this.updateSyncStatus('saving'));
-            window.addEventListener('gemini-storage-saved', () => this.updateSyncStatus('saved'));
-            window.addEventListener('gemini-storage-error', (e) => this.updateSyncStatus('error', e.detail));
+            window.addEventListener('gemini-storage-saving', () => {
+                console.log('Event: gemini-storage-saving');
+                this.updateSyncStatus('saving');
+            });
+            window.addEventListener('gemini-storage-saved', (e) => {
+                console.log('Event: gemini-storage-saved', e.detail);
+                this.lastSynced = e.detail?.lastSynced || Date.now();
+                this.updateSyncStatus('saved', e.detail);
+            });
+            window.addEventListener('gemini-storage-error', (e) => {
+                console.error('Event: gemini-storage-error', e.detail);
+                this.updateSyncStatus('error', e.detail);
+            });
 
             // Real-time sync update
             window.addEventListener('gemini-storage-updated', (e) => {
-                console.log('Gemini Folders: Received sync update', e.detail);
+                console.log('Event: gemini-storage-updated', e.detail);
                 if (e.detail && e.detail.folders) {
                     this.folders = e.detail.folders;
                     this.renderFolders();
@@ -89,9 +100,12 @@
             const data = await Storage.get();
             this.folders = data.folders || [];
 
-            // Update sync indicator with last timestamp if available
-            if (data.lastSynced) {
-                this.updateSyncStatus('saved', { lastSynced: data.lastSynced });
+            // Cache timestamp
+            this.lastSynced = data.lastSynced;
+
+            // Update sync indicator if it exists (might not yet)
+            if (this.lastSynced) {
+                this.updateSyncStatus('saved', { lastSynced: this.lastSynced });
             }
 
             this.renderFolders();
@@ -222,6 +236,11 @@
             // Then insert Button before the Indicator (so Button is first, Indicator is second)
             rightSection.insertBefore(syncIndicator, rightSection.firstChild);
             rightSection.insertBefore(btn, syncIndicator);
+
+            // Immediately set status if we have data
+            if (this.lastSynced) {
+                this.updateSyncStatus('saved', { lastSynced: this.lastSynced });
+            }
         }
 
         async showFolderDropdown(button) {

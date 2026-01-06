@@ -91,6 +91,7 @@ export const Storage = {
      * Includes Normalization (Stripping URLs)
      */
     set: async (data) => {
+        console.log('Storage.set called', data);
         Storage.notify('saving');
 
         // Deep copy to facilitate modification without affecting UI state object immediately
@@ -100,10 +101,12 @@ export const Storage = {
         dataToSave.lastSynced = Date.now();
 
         // Normalize: Strip URLs to save space
+        let chatCount = 0;
         if (dataToSave.folders) {
             dataToSave.folders.forEach(folder => {
                 if (folder.chats) {
                     folder.chats.forEach(chat => {
+                        chatCount++;
                         // If it's a standard gemini URL, strip it
                         if (chat.url && chat.url.startsWith(APP_URL_PREFIX)) {
                             delete chat.url;
@@ -112,6 +115,7 @@ export const Storage = {
                 }
             });
         }
+        console.log(`Storage: Saving ${chatCount} chats to Sync...`);
 
         return new Promise((resolve, reject) => {
             STORAGE_AREA.set({ [STORAGE_KEY]: dataToSave }, () => {
@@ -127,6 +131,7 @@ export const Storage = {
                     Storage.notify('error', userFriendlyError);
                     resolve(); // Resolve anyway so app doesn't crash, but UI shows error
                 } else {
+                    console.log('Storage: Save success', dataToSave.lastSynced);
                     Storage.notify('saved', { lastSynced: dataToSave.lastSynced });
                     // Optional: Clear local storage after successful sync to clean up?
                     // LOCAL_STORAGE.remove(STORAGE_KEY); 
