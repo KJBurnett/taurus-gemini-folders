@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Create release zip
+        run: |
+          # Exclude dev files from the release
+          zip -r taurus-gemini-folders.zip . \
+            -x "*.git*" \
+            -x "*.pem" \
+            -x ".github/*" \
+            -x "*.md" \
+            -x "pubkey.txt" \
+            -x "keygen_notes.txt"
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taurus-gemini-folders
+          path: taurus-gemini-folders.zip
+      
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: taurus-gemini-folders.zip
+          generate_release_notes: true
