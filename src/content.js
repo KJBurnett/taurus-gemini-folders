@@ -161,11 +161,7 @@
 
         startHeaderObserver() {
             const observer = new MutationObserver((mutations) => {
-                const rightSection = document.querySelector(Selectors.headerRightSection);
-                if (rightSection && !rightSection.querySelector('.move-to-folder-btn')) {
-                    this.injectMoveButton();
-                    this.updateCurrentChatTitle();
-                }
+                this.ensureMoveButtonAndIndicator();
             });
             observer.observe(document.body, { childList: true, subtree: true });
         }
@@ -203,38 +199,10 @@
             }
         }
 
-        injectMoveButton() {
+        ensureMoveButtonAndIndicator() {
             const rightSection = document.querySelector(Selectors.headerRightSection);
             if (!rightSection) return;
 
-            const btn = document.createElement('button');
-            btn.className = 'move-to-folder-btn';
-            btn.innerHTML = `${Icons.move} Move to`;
-            btn.style.zIndex = '9999';
-
-            btn.addEventListener('click', (e) => {
-                console.log('Gemini Folders: Move button clicked');
-                e.preventDefault();
-                e.stopPropagation();
-                this.showFolderDropdown(btn);
-            });
-
-            // Create Sync Indicator
-            const syncIndicator = document.createElement('div');
-            syncIndicator.className = 'sync-status-indicator saved'; // Default to saved initially
-            syncIndicator.innerHTML = Icons.cloud_done;
-            syncIndicator.title = "Folders are synced";
-
-            // Insert Indicator first, then button (since we insertBefore firstChild, later ones appear to the left?)
-            // rightSection.insertBefore(btn, firstChild) -> btn is first.
-            // if we want [Indicator] [MoveBtn] [ShareBtn]...
-            // We should insert MoveBtn, then insert Indicator before MoveBtn?
-            // Actually CSS flex-row-reverse might affect this, but usually header right section is flex. 
-            // Let's assume standard flex row.
-
-            // Insert Indicator first (it becomes the first child)
-            // Then insert Button before the Indicator (so Button is first, Indicator is second)
-            rightSection.insertBefore(syncIndicator, rightSection.firstChild);
             rightSection.insertBefore(btn, syncIndicator);
 
             // Immediately set status if we have data
