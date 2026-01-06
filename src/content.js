@@ -45,6 +45,15 @@
             window.addEventListener('gemini-storage-saving', () => this.updateSyncStatus('saving'));
             window.addEventListener('gemini-storage-saved', () => this.updateSyncStatus('saved'));
             window.addEventListener('gemini-storage-error', (e) => this.updateSyncStatus('error', e.detail));
+
+            // Real-time sync update
+            window.addEventListener('gemini-storage-updated', (e) => {
+                console.log('Gemini Folders: Received sync update', e.detail);
+                if (e.detail && e.detail.folders) {
+                    this.folders = e.detail.folders;
+                    this.renderFolders();
+                }
+            });
         }
 
         updateSyncStatus(state, errorDetails = '') {

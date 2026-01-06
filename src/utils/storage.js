@@ -12,6 +12,30 @@ const LOCAL_STORAGE = chrome.storage.local;
 // Helper to normalized URL storage (save space)
 const APP_URL_PREFIX = 'https://gemini.google.com/app/';
 
+// Listen for Cloud Changes (Cross-device sync)
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'sync' && changes[STORAGE_KEY]) {
+        console.log('Gemini Folders: Cloud data changed', changes[STORAGE_KEY]);
+        const newData = changes[STORAGE_KEY].newValue;
+        if (newData) {
+            // Hydrate URLs before dispatching
+            if (newData.folders) {
+                newData.folders.forEach(folder => {
+                    if (folder.chats) {
+                        folder.chats.forEach(chat => {
+                            if (!chat.url && chat.id) {
+                                chat.url = APP_URL_PREFIX + chat.id;
+                            }
+                        });
+                    }
+                });
+            }
+            // Dispatch event so content.js can re-render
+            window.dispatchEvent(new CustomEvent('gemini-storage-updated', { detail: newData }));
+        }
+    }
+});
+
 export const Storage = {
     /**
      * Dispatch events for UI updates
