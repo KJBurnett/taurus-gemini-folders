@@ -1,6 +1,6 @@
 # Taurus - Gemini Folders
 
-A browser extension that adds folder organization to Google Gemini. Categorize your AI conversations by project, topic, or workflow.
+A browser extension that adds folder organization to Google Gemini. Complete with JSON export/import & cloud sync across devices!
 
 ## Features
 
