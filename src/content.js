@@ -16,7 +16,10 @@
         check: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>',
         create_new: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z"/></svg>',
         download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>',
-        upload: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>'
+        upload: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>',
+        to_cloud: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>',
+        cloud_done: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM10 17l-3.5-3.5 1.41-1.41L10 14.17 15.18 9l1.41 1.41L10 17z"/></svg>',
+        warning: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>'
     };
 
     class GeminiFoldersApp {
@@ -33,8 +36,39 @@
             await this.injectSidebar();
             this.startHeaderObserver();
             this.startUrlObserver();
+            this.setupStorageListeners();
 
             setInterval(() => this.checkInjectSanity(), 5000);
+        }
+
+        setupStorageListeners() {
+            window.addEventListener('gemini-storage-saving', () => this.updateSyncStatus('saving'));
+            window.addEventListener('gemini-storage-saved', () => this.updateSyncStatus('saved'));
+            window.addEventListener('gemini-storage-error', (e) => this.updateSyncStatus('error', e.detail));
+        }
+
+        updateSyncStatus(state, errorDetails = '') {
+            const indicator = document.querySelector('.sync-status-indicator');
+            if (!indicator) return;
+
+            indicator.className = 'sync-status-indicator'; // Reset classes
+            indicator.removeAttribute('title');
+
+            if (state === 'saving') {
+                indicator.classList.add('syncing');
+                indicator.innerHTML = Icons.to_cloud;
+                indicator.title = "Cloud sync in progress...";
+            } else if (state === 'saved') {
+                indicator.classList.add('saved');
+                indicator.innerHTML = Icons.cloud_done;
+                indicator.title = "Folders are synced";
+                // Reset to idle/hidden after 3 seconds if we want, or keep green check?
+                // Letting it stay green is reassuring.
+            } else if (state === 'error') {
+                indicator.classList.add('error');
+                indicator.innerHTML = Icons.warning;
+                indicator.title = `Sync failed: ${errorDetails || 'Unknown error'}`;
+            }
         }
 
         checkInjectSanity() {
@@ -157,7 +191,23 @@
                 this.showFolderDropdown(btn);
             });
 
-            rightSection.insertBefore(btn, rightSection.firstChild);
+            // Create Sync Indicator
+            const syncIndicator = document.createElement('div');
+            syncIndicator.className = 'sync-status-indicator saved'; // Default to saved initially
+            syncIndicator.innerHTML = Icons.cloud_done;
+            syncIndicator.title = "Folders are synced";
+
+            // Insert Indicator first, then button (since we insertBefore firstChild, later ones appear to the left?)
+            // rightSection.insertBefore(btn, firstChild) -> btn is first.
+            // if we want [Indicator] [MoveBtn] [ShareBtn]...
+            // We should insert MoveBtn, then insert Indicator before MoveBtn?
+            // Actually CSS flex-row-reverse might affect this, but usually header right section is flex. 
+            // Let's assume standard flex row.
+
+            // Insert Indicator first (it becomes the first child)
+            // Then insert Button before the Indicator (so Button is first, Indicator is second)
+            rightSection.insertBefore(syncIndicator, rightSection.firstChild);
+            rightSection.insertBefore(btn, syncIndicator);
         }
 
         async showFolderDropdown(button) {
