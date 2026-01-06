@@ -32,6 +32,8 @@
         }
 
         async init() {
+            console.log('Gemini Folders: Content Script Loaded');
+            console.log('Gemini Folders: Extension ID:', chrome.runtime.id);
             console.log('Gemini Folders: Initializing...');
             await this.loadData();
             await this.injectSidebar();
