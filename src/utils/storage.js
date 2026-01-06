@@ -45,7 +45,7 @@ export const Storage = {
     },
 
     /**
-     * Get all data: { folders: [] }
+     * Get all data: { folders: [], lastSynced: <timestamp> }
      * Folder structure: { id, name, chats: [{id, title}] } - URLs are reconstructed
      */
     get: async () => {
@@ -59,10 +59,11 @@ export const Storage = {
                     const localData = await new Promise(res => LOCAL_STORAGE.get([STORAGE_KEY], r => res(r[STORAGE_KEY])));
                     if (localData && localData.folders && localData.folders.length > 0) {
                         console.log('Gemini Folders: Migrating from Local to Sync...');
+                        localData.lastSynced = Date.now(); // Add timestamp
                         await Storage.set(localData); // logic inside set() helps normalize
                         data = localData;
                     } else {
-                        data = { folders: [] };
+                        data = { folders: [], lastSynced: null };
                     }
                 }
                 // -----------------------
@@ -95,6 +96,9 @@ export const Storage = {
         // Deep copy to facilitate modification without affecting UI state object immediately
         const dataToSave = JSON.parse(JSON.stringify(data));
 
+        // Update Timestamp
+        dataToSave.lastSynced = Date.now();
+
         // Normalize: Strip URLs to save space
         if (dataToSave.folders) {
             dataToSave.folders.forEach(folder => {
@@ -123,7 +127,7 @@ export const Storage = {
                     Storage.notify('error', userFriendlyError);
                     resolve(); // Resolve anyway so app doesn't crash, but UI shows error
                 } else {
-                    Storage.notify('saved');
+                    Storage.notify('saved', { lastSynced: dataToSave.lastSynced });
                     // Optional: Clear local storage after successful sync to clean up?
                     // LOCAL_STORAGE.remove(STORAGE_KEY); 
                     resolve();

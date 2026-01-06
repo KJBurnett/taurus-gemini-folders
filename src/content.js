@@ -56,12 +56,11 @@
             });
         }
 
-        updateSyncStatus(state, errorDetails = '') {
+        updateSyncStatus(state, detail = null) {
             const indicator = document.querySelector('.sync-status-indicator');
             if (!indicator) return;
 
             indicator.className = 'sync-status-indicator'; // Reset classes
-            indicator.removeAttribute('title');
 
             if (state === 'saving') {
                 indicator.classList.add('syncing');
@@ -70,13 +69,13 @@
             } else if (state === 'saved') {
                 indicator.classList.add('saved');
                 indicator.innerHTML = Icons.cloud_done;
-                indicator.title = "Folders are synced";
-                // Reset to idle/hidden after 3 seconds if we want, or keep green check?
-                // Letting it stay green is reassuring.
+
+                const timestamp = detail && detail.lastSynced ? new Date(detail.lastSynced).toLocaleTimeString() : 'Just now';
+                indicator.title = `Folders are synced (Last: ${timestamp})`;
             } else if (state === 'error') {
                 indicator.classList.add('error');
                 indicator.innerHTML = Icons.warning;
-                indicator.title = `Sync failed: ${errorDetails || 'Unknown error'}`;
+                indicator.title = `Sync failed: ${detail || 'Unknown error'}`;
             }
         }
 
@@ -89,6 +88,12 @@
         async loadData() {
             const data = await Storage.get();
             this.folders = data.folders || [];
+
+            // Update sync indicator with last timestamp if available
+            if (data.lastSynced) {
+                this.updateSyncStatus('saved', { lastSynced: data.lastSynced });
+            }
+
             this.renderFolders();
         }
 
