@@ -12,6 +12,30 @@ const LOCAL_STORAGE = chrome.storage.local;
 // Helper to normalized URL storage (save space)
 const APP_URL_PREFIX = 'https://gemini.google.com/app/';
 
+// Listen for Cloud Changes (Cross-device sync)
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'sync' && changes[STORAGE_KEY]) {
+        console.log('Gemini Folders: Cloud data changed', changes[STORAGE_KEY]);
+        const newData = changes[STORAGE_KEY].newValue;
+        if (newData) {
+            // Hydrate URLs before dispatching
+            if (newData.folders) {
+                newData.folders.forEach(folder => {
+                    if (folder.chats) {
+                        folder.chats.forEach(chat => {
+                            if (!chat.url && chat.id) {
+                                chat.url = APP_URL_PREFIX + chat.id;
+                            }
+                        });
+                    }
+                });
+            }
+            // Dispatch event so content.js can re-render
+            window.dispatchEvent(new CustomEvent('gemini-storage-updated', { detail: newData }));
+        }
+    }
+});
+
 export const Storage = {
     /**
      * Dispatch events for UI updates
@@ -21,7 +45,7 @@ export const Storage = {
     },
 
     /**
-     * Get all data: { folders: [] }
+     * Get all data: { folders: [], lastSynced: <timestamp> }
      * Folder structure: { id, name, chats: [{id, title}] } - URLs are reconstructed
      */
     get: async () => {
@@ -35,10 +59,11 @@ export const Storage = {
                     const localData = await new Promise(res => LOCAL_STORAGE.get([STORAGE_KEY], r => res(r[STORAGE_KEY])));
                     if (localData && localData.folders && localData.folders.length > 0) {
                         console.log('Gemini Folders: Migrating from Local to Sync...');
+                        localData.lastSynced = Date.now(); // Add timestamp
                         await Storage.set(localData); // logic inside set() helps normalize
                         data = localData;
                     } else {
-                        data = { folders: [] };
+                        data = { folders: [], lastSynced: null };
                     }
                 }
                 // -----------------------
@@ -66,16 +91,22 @@ export const Storage = {
      * Includes Normalization (Stripping URLs)
      */
     set: async (data) => {
+        console.log('Storage.set called', data);
         Storage.notify('saving');
 
         // Deep copy to facilitate modification without affecting UI state object immediately
         const dataToSave = JSON.parse(JSON.stringify(data));
 
+        // Update Timestamp
+        dataToSave.lastSynced = Date.now();
+
         // Normalize: Strip URLs to save space
+        let chatCount = 0;
         if (dataToSave.folders) {
             dataToSave.folders.forEach(folder => {
                 if (folder.chats) {
                     folder.chats.forEach(chat => {
+                        chatCount++;
                         // If it's a standard gemini URL, strip it
                         if (chat.url && chat.url.startsWith(APP_URL_PREFIX)) {
                             delete chat.url;
@@ -84,6 +115,7 @@ export const Storage = {
                 }
             });
         }
+        console.log(`Storage: Saving ${chatCount} chats to Sync...`);
 
         return new Promise((resolve, reject) => {
             STORAGE_AREA.set({ [STORAGE_KEY]: dataToSave }, () => {
@@ -99,7 +131,8 @@ export const Storage = {
                     Storage.notify('error', userFriendlyError);
                     resolve(); // Resolve anyway so app doesn't crash, but UI shows error
                 } else {
-                    Storage.notify('saved');
+                    console.log('Storage: Save success', dataToSave.lastSynced);
+                    Storage.notify('saved', { lastSynced: dataToSave.lastSynced });
                     // Optional: Clear local storage after successful sync to clean up?
                     // LOCAL_STORAGE.remove(STORAGE_KEY); 
                     resolve();

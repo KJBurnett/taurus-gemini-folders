@@ -16,7 +16,10 @@
         check: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>',
         create_new: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z"/></svg>',
         download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>',
-        upload: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>'
+        upload: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>',
+        to_cloud: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>',
+        cloud_done: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM10 17l-3.5-3.5 1.41-1.41L10 14.17 15.18 9l1.41 1.41L10 17z"/></svg>',
+        warning: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>'
     };
 
     class GeminiFoldersApp {
@@ -25,16 +28,68 @@
             this.currentChatId = null;
             this.currentChatTitle = null;
             this.expandedFolders = new Set();
+            this.lastSynced = null; // Cache for UI
         }
 
         async init() {
+            console.log('Gemini Folders: Content Script Loaded');
+            console.log('Gemini Folders: Extension ID:', chrome.runtime.id);
             console.log('Gemini Folders: Initializing...');
             await this.loadData();
             await this.injectSidebar();
             this.startHeaderObserver();
             this.startUrlObserver();
+            this.setupStorageListeners();
 
             setInterval(() => this.checkInjectSanity(), 5000);
+        }
+
+        setupStorageListeners() {
+            window.addEventListener('gemini-storage-saving', () => {
+                console.log('Event: gemini-storage-saving');
+                this.updateSyncStatus('saving');
+            });
+            window.addEventListener('gemini-storage-saved', (e) => {
+                console.log('Event: gemini-storage-saved', e.detail);
+                this.lastSynced = e.detail?.lastSynced || Date.now();
+                this.updateSyncStatus('saved', e.detail);
+            });
+            window.addEventListener('gemini-storage-error', (e) => {
+                console.error('Event: gemini-storage-error', e.detail);
+                this.updateSyncStatus('error', e.detail);
+            });
+
+            // Real-time sync update
+            window.addEventListener('gemini-storage-updated', (e) => {
+                console.log('Event: gemini-storage-updated', e.detail);
+                if (e.detail && e.detail.folders) {
+                    this.folders = e.detail.folders;
+                    this.renderFolders();
+                }
+            });
+        }
+
+        updateSyncStatus(state, detail = null) {
+            const indicator = document.querySelector('.sync-status-indicator');
+            if (!indicator) return;
+
+            indicator.className = 'sync-status-indicator'; // Reset classes
+
+            if (state === 'saving') {
+                indicator.classList.add('syncing');
+                indicator.innerHTML = Icons.to_cloud;
+                indicator.title = "Cloud sync in progress...";
+            } else if (state === 'saved') {
+                indicator.classList.add('saved');
+                indicator.innerHTML = Icons.cloud_done;
+
+                const timestamp = detail && detail.lastSynced ? new Date(detail.lastSynced).toLocaleTimeString() : 'Just now';
+                indicator.title = `Folders are synced (Last: ${timestamp})`;
+            } else if (state === 'error') {
+                indicator.classList.add('error');
+                indicator.innerHTML = Icons.warning;
+                indicator.title = `Sync failed: ${detail || 'Unknown error'}`;
+            }
         }
 
         checkInjectSanity() {
@@ -46,6 +101,15 @@
         async loadData() {
             const data = await Storage.get();
             this.folders = data.folders || [];
+
+            // Cache timestamp
+            this.lastSynced = data.lastSynced;
+
+            // Update sync indicator if it exists (might not yet)
+            if (this.lastSynced) {
+                this.updateSyncStatus('saved', { lastSynced: this.lastSynced });
+            }
+
             this.renderFolders();
         }
 
@@ -99,11 +163,7 @@
 
         startHeaderObserver() {
             const observer = new MutationObserver((mutations) => {
-                const rightSection = document.querySelector(Selectors.headerRightSection);
-                if (rightSection && !rightSection.querySelector('.move-to-folder-btn')) {
-                    this.injectMoveButton();
-                    this.updateCurrentChatTitle();
-                }
+                this.ensureMoveButtonAndIndicator();
             });
             observer.observe(document.body, { childList: true, subtree: true });
         }
@@ -141,23 +201,58 @@
             }
         }
 
-        injectMoveButton() {
+        ensureMoveButtonAndIndicator() {
             const rightSection = document.querySelector(Selectors.headerRightSection);
             if (!rightSection) return;
 
-            const btn = document.createElement('button');
-            btn.className = 'move-to-folder-btn';
-            btn.innerHTML = `${Icons.move} Move to`;
-            btn.style.zIndex = '9999';
+            // 1. Check/Inject Move Button
+            let btn = rightSection.querySelector('.move-to-folder-btn');
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.className = 'move-to-folder-btn';
+                btn.innerHTML = `${Icons.move} Move to`;
+                btn.style.zIndex = '9999';
 
-            btn.addEventListener('click', (e) => {
-                console.log('Gemini Folders: Move button clicked');
-                e.preventDefault();
-                e.stopPropagation();
-                this.showFolderDropdown(btn);
-            });
+                btn.addEventListener('click', (e) => {
+                    console.log('Gemini Folders: Move button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.showFolderDropdown(btn);
+                });
 
-            rightSection.insertBefore(btn, rightSection.firstChild);
+                // Insert into DOM
+                rightSection.insertBefore(btn, rightSection.firstChild);
+                this.updateCurrentChatTitle();
+            }
+
+            // 2. Check/Inject Sync Indicator
+            let syncIndicator = rightSection.querySelector('.sync-status-indicator');
+            if (!syncIndicator) {
+                syncIndicator = document.createElement('div');
+                syncIndicator.className = 'sync-status-indicator saved'; // Default
+                syncIndicator.innerHTML = Icons.cloud_done;
+
+                // Use cached Last Synced if available
+                if (this.lastSynced) {
+                    const timestamp = new Date(this.lastSynced).toLocaleTimeString();
+                    syncIndicator.title = `Folders are synced (Last: ${timestamp})`;
+                } else {
+                    syncIndicator.title = "Folders are synced";
+                }
+
+                // Place indicator to the RIGHT of the move button
+                // DOM Order: [Button] [Indicator]
+                if (btn.nextSibling) {
+                    rightSection.insertBefore(syncIndicator, btn.nextSibling);
+                } else {
+                    rightSection.appendChild(syncIndicator);
+                }
+
+                // Initial State Update
+                if (this.lastSynced) {
+                    this.updateSyncStatus('saved', { lastSynced: this.lastSynced });
+                }
+            }
         }
 
         async showFolderDropdown(button) {

@@ -298,3 +298,44 @@
 .move-to-folder-btn:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
+
+/* Sync Status Indicator */
+.sync-status-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    /* Spacing from Move button */
+    cursor: default;
+    opacity: 0.8;
+}
+
+.sync-status-indicator svg {
+    width: 18px;
+    height: 18px;
+}
+
+.sync-status-indicator.syncing {
+    color: #a8c7fa;
+    /* Google Blue */
+    animation: spin 1s linear infinite;
+}
+
+.sync-status-indicator.saved {
+    color: #4caf50;
+    /* Green */
+}
+
+.sync-status-indicator.error {
+    color: #f44336;
+    /* Red */
+    cursor: help;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
