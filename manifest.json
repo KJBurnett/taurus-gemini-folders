@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini Folders",
+  "version": "1.0",
+  "description": "Organize your Gemini chats into folders.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://gemini.google.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "css": [
+        "src/styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/*",
+        "src/utils/*.js"
+      ],
+      "matches": [
+        "https://gemini.google.com/*"
+      ]
+    }
+  ]
+}
