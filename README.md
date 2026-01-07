@@ -14,7 +14,7 @@ A browser extension that adds folder organization to Google Gemini. Complete wit
 
 ### Download
 
-1. Go to the [Releases](https://github.com/KJBurnett/taurus-gemini-folders/releases/tag/v1.2) page
+1. Go to the [Releases](https://github.com/KJBurnett/taurus-gemini-folders/releases) page
 2. Download the latest `taurus-gemini-folders.zip` file
 3. Extract the zip to a folder on your computer
 
