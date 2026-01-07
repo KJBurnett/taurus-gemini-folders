@@ -42,6 +42,7 @@
             this.setupStorageListeners();
 
             setInterval(() => this.checkInjectSanity(), 5000);
+            setInterval(() => this.checkUrl(), 1000); // Polling fallback for sneaky navigations
         }
 
         setupStorageListeners() {
@@ -63,8 +64,18 @@
             window.addEventListener('gemini-storage-updated', (e) => {
                 console.log('Event: gemini-storage-updated', e.detail);
                 if (e.detail && e.detail.folders) {
-                    this.folders = e.detail.folders;
+                    this.processAndSortData(e.detail.folders);
+                    this.lastSynced = e.detail.lastSynced || Date.now();
                     this.renderFolders();
+                }
+            });
+        }
+
+        processAndSortData(folders) {
+            this.folders = (folders || []).sort((a, b) => a.name.localeCompare(b.name));
+            this.folders.forEach(folder => {
+                if (folder.chats) {
+                    folder.chats.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
                 }
             });
         }
@@ -100,7 +111,7 @@
 
         async loadData() {
             const data = await Storage.get();
-            this.folders = data.folders || [];
+            this.processAndSortData(data.folders);
 
             // Cache timestamp
             this.lastSynced = data.lastSynced;
@@ -171,25 +182,36 @@
         startUrlObserver() {
             this.checkUrl();
             const originalPushState = history.pushState;
+            const originalReplaceState = history.replaceState;
+
             history.pushState = function () {
                 originalPushState.apply(this, arguments);
                 window.dispatchEvent(new Event('locationchange'));
             };
+            history.replaceState = function () {
+                originalReplaceState.apply(this, arguments);
+                window.dispatchEvent(new Event('locationchange'));
+            };
+
             window.addEventListener('popstate', () => this.checkUrl());
             window.addEventListener('locationchange', () => this.checkUrl());
         }
 
         checkUrl() {
-            const match = window.location.pathname.match(/\/app\/([a-f0-9]+)/);
+            // Broaden regex to catch any string after /app/ that isn't a sub-path or query
+            const match = window.location.pathname.match(/\/app\/([^\/\?#]+)/);
+
             // Always reset title when URL changes to prevent stale legacy titles
             this.currentChatTitle = null;
 
-            if (match) {
-                this.currentChatId = match[1];
-                this.updateCurrentChatTitle(); // Try to get it immediately if possible
-                this.renderFolders();
-            } else {
-                this.currentChatId = null;
+            const newId = match ? match[1] : null;
+
+            if (this.currentChatId !== newId) {
+                this.currentChatId = newId;
+                if (this.currentChatId) {
+                    this.updateCurrentChatTitle(); // Try to get it immediately
+                }
+                this.renderFolders(); // Update highlights on nav
             }
         }
 
@@ -358,28 +380,107 @@
             };
 
             await Storage.addChatToFolder(chatObj, folderId);
-            this.loadData();
         }
 
         handleCreateFolder() {
-            const name = prompt('Folder Name:');
-            if (name) {
-                Storage.addFolder(name).then(() => this.loadData());
-            }
+            this.showInputDialog('New Folder', '', (name) => {
+                if (name) {
+                    Storage.addFolder(name);
+                }
+            });
         }
 
         handleRenameFolder(folderId, currentName) {
-            const name = prompt('Rename Folder:', currentName);
-            if (name && name !== currentName) {
-                Storage.renameFolder(folderId, name).then(() => this.loadData());
-            }
+            this.showInputDialog('Rename Folder', currentName, (name) => {
+                if (name && name !== currentName) {
+                    Storage.renameFolder(folderId, name);
+                }
+            });
         }
 
         handleRenameChat(folderId, chatId, currentName) {
-            const name = prompt('Rename Chat (Alias):', currentName);
-            if (name && name !== currentName) {
-                Storage.renameChat(folderId, chatId, name).then(() => this.loadData());
-            }
+            this.showInputDialog('Rename Chat', currentName, (name) => {
+                if (name && name !== currentName) {
+                    Storage.renameChat(folderId, chatId, name);
+                }
+            });
+        }
+
+        showInputDialog(title, defaultValue, onConfirm) {
+            const overlay = document.createElement('div');
+            overlay.className = 'gemini-folders-modal-overlay';
+
+            overlay.innerHTML = `
+                <div class="gemini-folders-modal">
+                    <h3 class="gemini-modal-title">${title}</h3>
+                    <input type="text" class="gemini-modal-input" value="${defaultValue}" spellcheck="false" autocomplete="off">
+                    <div class="gemini-modal-actions">
+                        <button class="gemini-modal-btn cancel">Cancel</button>
+                        <button class="gemini-modal-btn confirm">Confirm</button>
+                    </div>
+                </div>
+            `;
+
+            const input = overlay.querySelector('.gemini-modal-input');
+            const confirmBtn = overlay.querySelector('.confirm');
+            const cancelBtn = overlay.querySelector('.cancel');
+
+            const close = () => overlay.remove();
+
+            confirmBtn.addEventListener('click', () => {
+                onConfirm(input.value.trim());
+                close();
+            });
+
+            cancelBtn.addEventListener('click', close);
+
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) close();
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') confirmBtn.click();
+                if (e.key === 'Escape') close();
+            });
+
+            document.body.appendChild(overlay);
+            input.focus();
+            input.select();
+        }
+
+        showConfirmDialog(title, message, onConfirm) {
+            const overlay = document.createElement('div');
+            overlay.className = 'gemini-folders-modal-overlay';
+
+            overlay.innerHTML = `
+                <div class="gemini-folders-modal">
+                    <h3 class="gemini-modal-title">${title}</h3>
+                    <p class="gemini-modal-message" style="color: #ccc; margin-bottom: 24px; line-height: 1.4; font-size: 14px;">${message}</p>
+                    <div class="gemini-modal-actions">
+                        <button class="gemini-modal-btn cancel">Cancel</button>
+                        <button class="gemini-modal-btn confirm" style="background: var(--gem-sys-color-error, #f28b82); color: #000;">Delete</button>
+                    </div>
+                </div>
+            `;
+
+            const confirmBtn = overlay.querySelector('.confirm');
+            const cancelBtn = overlay.querySelector('.cancel');
+
+            const close = () => overlay.remove();
+
+            confirmBtn.addEventListener('click', () => {
+                onConfirm();
+                close();
+            });
+
+            cancelBtn.addEventListener('click', close);
+
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) close();
+            });
+
+            document.body.appendChild(overlay);
+            confirmBtn.focus();
         }
 
         showStorageOptions(btn) {
@@ -515,7 +616,6 @@
             }
 
             await Storage.set(currentData);
-            await this.loadData();
             console.log(`Imported merged: ${addedFolders} new folders, ${addedChats} new chats.`);
         }
 
@@ -523,7 +623,7 @@
             const container = document.querySelector('.gemini-folder-list');
             if (!container) return;
 
-            container.innerHTML = '';
+            container.replaceChildren();
             this.folders.forEach(folder => {
                 const folderEl = document.createElement('div');
                 folderEl.style.position = 'relative';
@@ -573,9 +673,14 @@
                         </div>
                     `;
 
-                    // Click title to nav
-                    chatEl.querySelector('.gemini-folder-chat-title').addEventListener('click', () => {
-                        window.location.href = chat.url;
+                    // Click entire row to nav
+                    chatEl.addEventListener('click', (e) => {
+                        // Don't nav if clicking the options button
+                        if (e.target.closest('.chat-options-btn')) return;
+
+                        if (window.location.href !== chat.url) {
+                            window.location.href = chat.url;
+                        }
                     });
                     // Click 'options'
                     const chatOptsBtn = chatEl.querySelector('.chat-options-btn');
@@ -614,9 +719,11 @@
             deleteItem.className = 'folder-option-item';
             deleteItem.innerHTML = `${Icons.close} Delete`;
             deleteItem.addEventListener('click', () => {
-                if (confirm(`Delete folder "${folder.name}"?\n(Chats will NOT be deleted, just this folder)`)) {
-                    Storage.removeFolder(folder.id).then(() => this.loadData());
-                }
+                this.showConfirmDialog(
+                    'Delete Folder',
+                    `Delete folder "${folder.name}"?\n(Chats will NOT be deleted, just this folder)`,
+                    () => Storage.removeFolder(folder.id)
+                );
                 menu.remove();
             });
             menu.appendChild(deleteItem);
