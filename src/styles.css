@@ -276,9 +276,17 @@
     margin: 4px 0;
 }
 
+/* NEW Wrapper for Header Actions (Move to + Sync) */
+.gemini-folders-header-actions {
+    display: flex;
+    align-items: center;
+    margin-left: 8px;
+    /* Slightly reduced margin from Gemini Logo */
+    flex-shrink: 0;
+}
+
 /* Move To Folder Button (Header) */
 .move-to-folder-btn {
-    margin-right: 8px;
     height: 32px;
     border-radius: 16px;
     border: 1px solid var(--gem-sys-color-outline, #555);
@@ -293,6 +301,9 @@
     align-items: center;
     gap: 6px;
     white-space: nowrap;
+    /* Prevent squishing */
+    flex-shrink: 0;
+    z-index: 999;
 }
 
 .move-to-folder-btn:hover {
@@ -306,10 +317,12 @@
     justify-content: center;
     width: 20px;
     height: 20px;
-    margin-right: 8px;
+    margin-left: 8px;
     /* Spacing from Move button */
     cursor: default;
     opacity: 0.8;
+    /* Prevent squishing */
+    flex-shrink: 0;
 }
 
 .sync-status-indicator svg {
@@ -338,4 +351,45 @@
     100% {
         transform: rotate(360deg);
     }
+}
+
+/* RESPONSIVE FIXES */
+@media screen and (max-width: 1100px) {
+    .move-to-folder-btn .btn-text {
+        display: none;
+    }
+
+    .move-to-folder-btn {
+        padding: 0 8px;
+        /* Circular/Icon button feel */
+        border-radius: 50%;
+        /* Optional: make it fully round? Or keep pill shape */
+        border-radius: 8px;
+        /* Let's keep it slightly rounded but smaller */
+        width: 32px;
+        justify-content: center;
+    }
+
+    /* Force the button to be a square/circle so icon is centered */
+    .move-to-folder-btn {
+        width: 32px;
+        padding: 0;
+        border-radius: 50%;
+    }
+}
+
+/* Force Title Truncation to prevent overlap */
+/* This targets the Gemini title container */
+.conversation-title-container {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    flex-shrink: 1 !important;
+}
+
+.top-bar-actions .center-section {
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
+    overflow: hidden !important;
 }
