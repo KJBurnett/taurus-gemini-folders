@@ -581,9 +581,14 @@
                         </div>
                     `;
 
-                    // Click title to nav
-                    chatEl.querySelector('.gemini-folder-chat-title').addEventListener('click', () => {
-                        window.location.href = chat.url;
+                    // Click entire row to nav
+                    chatEl.addEventListener('click', (e) => {
+                        // Don't nav if clicking the options button
+                        if (e.target.closest('.chat-options-btn')) return;
+
+                        if (window.location.href !== chat.url) {
+                            window.location.href = chat.url;
+                        }
                     });
                     // Click 'options'
                     const chatOptsBtn = chatEl.querySelector('.chat-options-btn');

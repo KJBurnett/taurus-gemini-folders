@@ -54,6 +54,15 @@
     opacity: 1;
 }
 
+.folder-storage-btn {
+    cursor: default;
+}
+
+.folder-add-btn {
+    cursor: pointer;
+    /* Explicitly keep as pointer */
+}
+
 /* Legacy support if needed, but we will update HTML to use the new class */
 .gemini-folder-add-btn {
     display: none;
@@ -118,7 +127,7 @@
 .gemini-icon-btn {
     background: none;
     border: none;
-    cursor: pointer;
+    cursor: default;
     padding: 4px;
     border-radius: 50%;
     color: inherit;
@@ -190,6 +199,7 @@
     justify-content: space-between;
     position: relative;
     min-height: 28px;
+    cursor: pointer;
 }
 
 .gemini-folder-chat-item:hover {
@@ -208,6 +218,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     margin-right: 4px;
+    cursor: pointer;
 }
 
 /* Chat Item Actions */
