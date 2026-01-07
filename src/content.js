@@ -42,6 +42,7 @@
             this.setupStorageListeners();
 
             setInterval(() => this.checkInjectSanity(), 5000);
+            setInterval(() => this.checkUrl(), 1000); // Polling fallback for sneaky navigations
         }
 
         setupStorageListeners() {
@@ -181,25 +182,36 @@
         startUrlObserver() {
             this.checkUrl();
             const originalPushState = history.pushState;
+            const originalReplaceState = history.replaceState;
+
             history.pushState = function () {
                 originalPushState.apply(this, arguments);
                 window.dispatchEvent(new Event('locationchange'));
             };
+            history.replaceState = function () {
+                originalReplaceState.apply(this, arguments);
+                window.dispatchEvent(new Event('locationchange'));
+            };
+
             window.addEventListener('popstate', () => this.checkUrl());
             window.addEventListener('locationchange', () => this.checkUrl());
         }
 
         checkUrl() {
-            const match = window.location.pathname.match(/\/app\/([a-f0-9]+)/);
+            // Broaden regex to catch any string after /app/ that isn't a sub-path or query
+            const match = window.location.pathname.match(/\/app\/([^\/\?#]+)/);
+
             // Always reset title when URL changes to prevent stale legacy titles
             this.currentChatTitle = null;
 
-            if (match) {
-                this.currentChatId = match[1];
-                this.updateCurrentChatTitle(); // Try to get it immediately if possible
-                this.renderFolders();
-            } else {
-                this.currentChatId = null;
+            const newId = match ? match[1] : null;
+
+            if (this.currentChatId !== newId) {
+                this.currentChatId = newId;
+                if (this.currentChatId) {
+                    this.updateCurrentChatTitle(); // Try to get it immediately
+                }
+                this.renderFolders(); // Update highlights on nav
             }
         }
 
@@ -371,24 +383,104 @@
         }
 
         handleCreateFolder() {
-            const name = prompt('Folder Name:');
-            if (name) {
-                Storage.addFolder(name);
-            }
+            this.showInputDialog('New Folder', '', (name) => {
+                if (name) {
+                    Storage.addFolder(name);
+                }
+            });
         }
 
         handleRenameFolder(folderId, currentName) {
-            const name = prompt('Rename Folder:', currentName);
-            if (name && name !== currentName) {
-                Storage.renameFolder(folderId, name);
-            }
+            this.showInputDialog('Rename Folder', currentName, (name) => {
+                if (name && name !== currentName) {
+                    Storage.renameFolder(folderId, name);
+                }
+            });
         }
 
         handleRenameChat(folderId, chatId, currentName) {
-            const name = prompt('Rename Chat (Alias):', currentName);
-            if (name && name !== currentName) {
-                Storage.renameChat(folderId, chatId, name);
-            }
+            this.showInputDialog('Rename Chat', currentName, (name) => {
+                if (name && name !== currentName) {
+                    Storage.renameChat(folderId, chatId, name);
+                }
+            });
+        }
+
+        showInputDialog(title, defaultValue, onConfirm) {
+            const overlay = document.createElement('div');
+            overlay.className = 'gemini-folders-modal-overlay';
+
+            overlay.innerHTML = `
+                <div class="gemini-folders-modal">
+                    <h3 class="gemini-modal-title">${title}</h3>
+                    <input type="text" class="gemini-modal-input" value="${defaultValue}" spellcheck="false" autocomplete="off">
+                    <div class="gemini-modal-actions">
+                        <button class="gemini-modal-btn cancel">Cancel</button>
+                        <button class="gemini-modal-btn confirm">Confirm</button>
+                    </div>
+                </div>
+            `;
+
+            const input = overlay.querySelector('.gemini-modal-input');
+            const confirmBtn = overlay.querySelector('.confirm');
+            const cancelBtn = overlay.querySelector('.cancel');
+
+            const close = () => overlay.remove();
+
+            confirmBtn.addEventListener('click', () => {
+                onConfirm(input.value.trim());
+                close();
+            });
+
+            cancelBtn.addEventListener('click', close);
+
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) close();
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') confirmBtn.click();
+                if (e.key === 'Escape') close();
+            });
+
+            document.body.appendChild(overlay);
+            input.focus();
+            input.select();
+        }
+
+        showConfirmDialog(title, message, onConfirm) {
+            const overlay = document.createElement('div');
+            overlay.className = 'gemini-folders-modal-overlay';
+
+            overlay.innerHTML = `
+                <div class="gemini-folders-modal">
+                    <h3 class="gemini-modal-title">${title}</h3>
+                    <p class="gemini-modal-message" style="color: #ccc; margin-bottom: 24px; line-height: 1.4; font-size: 14px;">${message}</p>
+                    <div class="gemini-modal-actions">
+                        <button class="gemini-modal-btn cancel">Cancel</button>
+                        <button class="gemini-modal-btn confirm" style="background: var(--gem-sys-color-error, #f28b82); color: #000;">Delete</button>
+                    </div>
+                </div>
+            `;
+
+            const confirmBtn = overlay.querySelector('.confirm');
+            const cancelBtn = overlay.querySelector('.cancel');
+
+            const close = () => overlay.remove();
+
+            confirmBtn.addEventListener('click', () => {
+                onConfirm();
+                close();
+            });
+
+            cancelBtn.addEventListener('click', close);
+
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) close();
+            });
+
+            document.body.appendChild(overlay);
+            confirmBtn.focus();
         }
 
         showStorageOptions(btn) {
@@ -627,9 +719,11 @@
             deleteItem.className = 'folder-option-item';
             deleteItem.innerHTML = `${Icons.close} Delete`;
             deleteItem.addEventListener('click', () => {
-                if (confirm(`Delete folder "${folder.name}"?\n(Chats will NOT be deleted, just this folder)`)) {
-                    Storage.removeFolder(folder.id);
-                }
+                this.showConfirmDialog(
+                    'Delete Folder',
+                    `Delete folder "${folder.name}"?\n(Chats will NOT be deleted, just this folder)`,
+                    () => Storage.removeFolder(folder.id)
+                );
                 menu.remove();
             });
             menu.appendChild(deleteItem);
