@@ -63,8 +63,18 @@
             window.addEventListener('gemini-storage-updated', (e) => {
                 console.log('Event: gemini-storage-updated', e.detail);
                 if (e.detail && e.detail.folders) {
-                    this.folders = e.detail.folders;
+                    this.processAndSortData(e.detail.folders);
+                    this.lastSynced = e.detail.lastSynced || Date.now();
                     this.renderFolders();
+                }
+            });
+        }
+
+        processAndSortData(folders) {
+            this.folders = (folders || []).sort((a, b) => a.name.localeCompare(b.name));
+            this.folders.forEach(folder => {
+                if (folder.chats) {
+                    folder.chats.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
                 }
             });
         }
@@ -100,7 +110,7 @@
 
         async loadData() {
             const data = await Storage.get();
-            this.folders = data.folders || [];
+            this.processAndSortData(data.folders);
 
             // Cache timestamp
             this.lastSynced = data.lastSynced;
@@ -358,27 +368,26 @@
             };
 
             await Storage.addChatToFolder(chatObj, folderId);
-            this.loadData();
         }
 
         handleCreateFolder() {
             const name = prompt('Folder Name:');
             if (name) {
-                Storage.addFolder(name).then(() => this.loadData());
+                Storage.addFolder(name);
             }
         }
 
         handleRenameFolder(folderId, currentName) {
             const name = prompt('Rename Folder:', currentName);
             if (name && name !== currentName) {
-                Storage.renameFolder(folderId, name).then(() => this.loadData());
+                Storage.renameFolder(folderId, name);
             }
         }
 
         handleRenameChat(folderId, chatId, currentName) {
             const name = prompt('Rename Chat (Alias):', currentName);
             if (name && name !== currentName) {
-                Storage.renameChat(folderId, chatId, name).then(() => this.loadData());
+                Storage.renameChat(folderId, chatId, name);
             }
         }
 
@@ -515,7 +524,6 @@
             }
 
             await Storage.set(currentData);
-            await this.loadData();
             console.log(`Imported merged: ${addedFolders} new folders, ${addedChats} new chats.`);
         }
 
@@ -523,7 +531,7 @@
             const container = document.querySelector('.gemini-folder-list');
             if (!container) return;
 
-            container.innerHTML = '';
+            container.replaceChildren();
             this.folders.forEach(folder => {
                 const folderEl = document.createElement('div');
                 folderEl.style.position = 'relative';
@@ -615,7 +623,7 @@
             deleteItem.innerHTML = `${Icons.close} Delete`;
             deleteItem.addEventListener('click', () => {
                 if (confirm(`Delete folder "${folder.name}"?\n(Chats will NOT be deleted, just this folder)`)) {
-                    Storage.removeFolder(folder.id).then(() => this.loadData());
+                    Storage.removeFolder(folder.id);
                 }
                 menu.remove();
             });
