@@ -202,16 +202,26 @@
         }
 
         ensureMoveButtonAndIndicator() {
-            const rightSection = document.querySelector(Selectors.headerRightSection);
-            if (!rightSection) return;
+            // Target the Gemini Logo Container to anchor directly to its right
+            const logoContainer = document.querySelector(Selectors.geminiLogoContainer);
+            if (!logoContainer) return;
 
-            // 1. Check/Inject Move Button
-            let btn = rightSection.querySelector('.move-to-folder-btn');
+            // 1. Check/Inject Wrapper Actions Container
+            let actionsWrapper = document.querySelector('.gemini-folders-header-actions');
+            if (!actionsWrapper) {
+                actionsWrapper = document.createElement('div');
+                actionsWrapper.className = 'gemini-folders-header-actions';
+                // Insert directly after the logo container
+                logoContainer.parentNode.insertBefore(actionsWrapper, logoContainer.nextSibling);
+            }
+
+            // 2. Check/Inject Move Button
+            let btn = actionsWrapper.querySelector('.move-to-folder-btn');
             if (!btn) {
                 btn = document.createElement('button');
                 btn.className = 'move-to-folder-btn';
-                btn.innerHTML = `${Icons.move} Move to`;
-                btn.style.zIndex = '9999';
+                btn.innerHTML = `${Icons.move} <span class="btn-text">Move to</span>`;
+                btn.title = "Move to folder";
 
                 btn.addEventListener('click', (e) => {
                     console.log('Gemini Folders: Move button clicked');
@@ -220,13 +230,12 @@
                     this.showFolderDropdown(btn);
                 });
 
-                // Insert into DOM
-                rightSection.insertBefore(btn, rightSection.firstChild);
+                actionsWrapper.appendChild(btn);
                 this.updateCurrentChatTitle();
             }
 
-            // 2. Check/Inject Sync Indicator
-            let syncIndicator = rightSection.querySelector('.sync-status-indicator');
+            // 3. Check/Inject Sync Indicator
+            let syncIndicator = actionsWrapper.querySelector('.sync-status-indicator');
             if (!syncIndicator) {
                 syncIndicator = document.createElement('div');
                 syncIndicator.className = 'sync-status-indicator saved'; // Default
@@ -240,13 +249,7 @@
                     syncIndicator.title = "Folders are synced";
                 }
 
-                // Place indicator to the RIGHT of the move button
-                // DOM Order: [Button] [Indicator]
-                if (btn.nextSibling) {
-                    rightSection.insertBefore(syncIndicator, btn.nextSibling);
-                } else {
-                    rightSection.appendChild(syncIndicator);
-                }
+                actionsWrapper.appendChild(syncIndicator);
 
                 // Initial State Update
                 if (this.lastSynced) {

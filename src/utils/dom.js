@@ -15,7 +15,9 @@ export const Selectors = {
     chatTitle: '.conversation-title',
 
     // Header area for actions
+    geminiLogoContainer: '.bard-logo-container',
     headerContainer: '.top-bar-actions .center-section',
+    headerLeftSection: '.top-bar-actions .left-section',
     headerRightSection: '.top-bar-actions .right-section',
     conversationActions: 'conversation-actions',
 
