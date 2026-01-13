@@ -1,6 +1,7 @@
 (async () => {
     const { Selectors, waitForElement } = await import(chrome.runtime.getURL('src/utils/dom.js'));
     const { Storage } = await import(chrome.runtime.getURL('src/utils/storage.js'));
+    const { DonationModal } = await import(chrome.runtime.getURL('src/components/donation.js'));
 
     console.log('Gemini Folders: Content Script Loaded');
 
@@ -270,13 +271,14 @@
             if (!coffeeBtn) {
                 coffeeBtn = document.createElement('button');
                 coffeeBtn.className = 'coffee-header-btn';
-                coffeeBtn.innerHTML = `${Icons.coffee} <span class="btn-text" style="font-size:11px;">Donate</span>`;
+                coffeeBtn.innerHTML = `${Icons.coffee} <span class="btn-text">Donate</span>`;
                 coffeeBtn.title = "Buy me a coffee";
 
                 coffeeBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    this.showDonationModal();
+                    const modal = new DonationModal();
+                    modal.show();
                 });
 
                 buttonsContainer.appendChild(coffeeBtn);
@@ -510,54 +512,7 @@
             confirmBtn.focus();
         }
 
-        showDonationModal() {
-            const overlay = document.createElement('div');
-            overlay.className = 'gemini-folders-modal-overlay';
 
-            // Asset URLs
-            const venmoQr = chrome.runtime.getURL('assets/venmo-kyler-burnett.jpg');
-            const paypalQr = chrome.runtime.getURL('assets/paypal-kyler-burnett.jpg');
-
-            overlay.innerHTML = `
-                <div class="gemini-folders-modal donation-modal">
-                    <h3 class="gemini-modal-title" style="text-align:center">Support Development ☕</h3>
-                    <p class="gemini-modal-message" style="text-align:center; margin-bottom: 20px;">
-                        Any amount of donation helps me continue making cool tools & products like this, help me convert caffeine into code! &lt;3
-                    </p>
-                    
-                    <div class="donation-options">
-                        <div class="donation-option">
-                            <h4>Venmo</h4>
-                            <div class="qr-container">
-                                <img src="${venmoQr}" alt="Venmo QR Code">
-                            </div>
-                            <a href="https://venmo.com/u/Kyler-Burnett" target="_blank" class="donation-link">@Kyler-Burnett</a>
-                        </div>
-                        <div class="donation-option">
-                            <h4>PayPal</h4>
-                            <div class="qr-container">
-                                <img src="${paypalQr}" alt="PayPal QR Code">
-                            </div>
-                            <a href="https://paypal.me/KylerBurnett" target="_blank" class="donation-link">paypal.me/KylerBurnett</a>
-                        </div>
-                    </div>
-
-                    <div class="gemini-modal-actions" style="justify-content: center; margin-top: 20px;">
-                        <button class="gemini-modal-btn confirm">Close</button>
-                    </div>
-                </div>
-            `;
-
-            const closeBtn = overlay.querySelector('.confirm');
-            const close = () => overlay.remove();
-
-            closeBtn.addEventListener('click', close);
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) close();
-            });
-
-            document.body.appendChild(overlay);
-        }
 
         showStorageOptions(btn) {
             const existing = document.querySelector('.folder-options-menu');
@@ -599,7 +554,8 @@
             donateItem.className = 'folder-option-item';
             donateItem.innerHTML = `${Icons.coffee} Buy me a coffee`;
             donateItem.addEventListener('click', () => {
-                this.showDonationModal();
+                const modal = new DonationModal();
+                modal.show();
                 menu.remove();
             });
             menu.appendChild(donateItem);
