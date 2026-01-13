@@ -290,7 +290,7 @@
 /* NEW Wrapper for Header Actions (Move to + Sync) */
 .gemini-folders-header-actions {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     margin-left: 8px;
     /* Slightly reduced margin from Gemini Logo */
     flex-shrink: 0;
@@ -334,6 +334,8 @@
     opacity: 0.8;
     /* Prevent squishing */
     flex-shrink: 0;
+    margin-top: 6px;
+    /* Align with center of 32px button */
 }
 
 .sync-status-indicator svg {

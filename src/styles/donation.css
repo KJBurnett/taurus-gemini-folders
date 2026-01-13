@@ -1,0 +1,148 @@
+/* Donation Modal Styles */
+.donation-modal {
+    max-width: 700px;
+    /* Wider for larger QR codes */
+}
+
+.donation-options {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+}
+
+.donation-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--gem-sys-color--surface-container-high, rgba(255, 255, 255, 0.05));
+    padding: 24px;
+    border-radius: 16px;
+    width: 280px;
+    border: 1px solid var(--gem-sys-color--outline-variant, rgba(255, 255, 255, 0.1));
+}
+
+.donation-option h4 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    color: var(--gem-sys-color--on-surface, #e3e3e3);
+}
+
+.qr-container {
+    width: 240px;
+    height: 240px;
+    background: #fff;
+    padding: 12px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.qr-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.donation-link {
+    color: var(--gem-sys-color--primary, #a8c7fa);
+    text-decoration: none;
+    font-size: 14px;
+    text-align: center;
+    word-break: break-all;
+}
+
+.donation-link:hover {
+    text-decoration: underline;
+}
+
+/* Footer Styles */
+.donation-footer {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 16px;
+    color: var(--gem-sys-color--on-surface-variant);
+    opacity: 0.6;
+    border-top: 1px solid var(--gem-sys-color--outline-variant, rgba(255, 255, 255, 0.1));
+    padding-top: 8px;
+    /* Reduced from 16px */
+}
+
+.donation-footer p {
+    margin: 0;
+    /* Remove default margins */
+    display: inline-block;
+    /* Keep inline with link if needed, or block */
+}
+
+.donation-footer a {
+    color: inherit;
+    text-decoration: underline;
+    margin-left: 4px;
+}
+
+.donation-footer a:hover {
+    color: var(--gem-sys-color--primary, #a8c7fa);
+    opacity: 1;
+}
+
+/* Header Button Styles */
+.header-buttons-column {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    /* Left align buttons */
+    justify-content: center;
+    margin-right: 4px;
+}
+
+/* Adjust Move Button in this context */
+.header-buttons-column .move-to-folder-btn {
+    margin-bottom: 0;
+}
+
+/* Coffee Button */
+.coffee-header-btn {
+    background: none;
+    border: none;
+    color: var(--gem-sys-color--on-surface-variant);
+    padding: 2px 8px;
+    /* Compact */
+    font-size: 16px;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.6;
+    border-radius: 12px;
+    margin-top: 0px;
+    /* Tight spacing */
+    height: 20px;
+}
+
+.coffee-header-btn:hover {
+    background-color: var(--gem-sys-color--surface-container-high);
+    opacity: 1;
+    color: var(--gem-sys-color--primary, #a8c7fa);
+}
+
+.coffee-header-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* Small screen adjustments */
+@media screen and (max-width: 1100px) {
+    .coffee-header-btn .btn-text {
+        display: none;
+    }
+
+    .header-buttons-column {
+        align-items: center;
+    }
+}

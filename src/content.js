@@ -1,6 +1,7 @@
 (async () => {
     const { Selectors, waitForElement } = await import(chrome.runtime.getURL('src/utils/dom.js'));
     const { Storage } = await import(chrome.runtime.getURL('src/utils/storage.js'));
+    const { DonationModal } = await import(chrome.runtime.getURL('src/components/donation.js'));
 
     console.log('Gemini Folders: Content Script Loaded');
 
@@ -19,7 +20,8 @@
         upload: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>',
         to_cloud: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>',
         cloud_done: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM10 17l-3.5-3.5 1.41-1.41L10 14.17 15.18 9l1.41 1.41L10 17z"/></svg>',
-        warning: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>'
+        warning: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>',
+        coffee: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 3H6c-1.1 0-2 .9-2 2v5.71c0 3.83 2.95 7.18 6.78 7.29 3.96.12 7.22-3.06 7.22-7v-1h.5c1.93 0 3.5-1.57 3.5-3.5S20.43 3 18.5 3zM16 8v-1H6V5h10v3zm2.5 0h-.5v-3h.5c.83 0 1.5.67 1.5 1.5S19.17 8 18.5 8zM4 19h16v2H4v-2z"/></svg>'
     };
 
     class GeminiFoldersApp {
@@ -237,8 +239,16 @@
                 logoContainer.parentNode.insertBefore(actionsWrapper, logoContainer.nextSibling);
             }
 
-            // 2. Check/Inject Move Button
-            let btn = actionsWrapper.querySelector('.move-to-folder-btn');
+            // 2. Check/Inject Header Buttons Container
+            let buttonsContainer = actionsWrapper.querySelector('.header-buttons-column');
+            if (!buttonsContainer) {
+                buttonsContainer = document.createElement('div');
+                buttonsContainer.className = 'header-buttons-column';
+                actionsWrapper.appendChild(buttonsContainer);
+            }
+
+            // 3. Check/Inject Move Button
+            let btn = buttonsContainer.querySelector('.move-to-folder-btn');
             if (!btn) {
                 btn = document.createElement('button');
                 btn.className = 'move-to-folder-btn';
@@ -252,11 +262,30 @@
                     this.showFolderDropdown(btn);
                 });
 
-                actionsWrapper.appendChild(btn);
+                buttonsContainer.appendChild(btn);
                 this.updateCurrentChatTitle();
             }
 
-            // 3. Check/Inject Sync Indicator
+            // 4. Check/Inject Coffee Button
+            let coffeeBtn = buttonsContainer.querySelector('.coffee-header-btn');
+            if (!coffeeBtn) {
+                coffeeBtn = document.createElement('button');
+                coffeeBtn.className = 'coffee-header-btn';
+                coffeeBtn.innerHTML = `${Icons.coffee} <span class="btn-text">Donate</span>`;
+                coffeeBtn.title = "Buy me a coffee";
+
+                coffeeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const modal = new DonationModal();
+                    modal.show();
+                });
+
+                buttonsContainer.appendChild(coffeeBtn);
+            }
+
+            // 5. Check/Inject Sync Indicator (Outside column, or modify where it sits)
+            // We want it maybe next to the column?
             let syncIndicator = actionsWrapper.querySelector('.sync-status-indicator');
             if (!syncIndicator) {
                 syncIndicator = document.createElement('div');
@@ -483,6 +512,8 @@
             confirmBtn.focus();
         }
 
+
+
         showStorageOptions(btn) {
             const existing = document.querySelector('.folder-options-menu');
             if (existing) existing.remove();
@@ -512,6 +543,22 @@
                 menu.remove();
             });
             menu.appendChild(importItem);
+
+            // Divider
+            const div = document.createElement('div');
+            div.className = 'folder-dropdown-divider';
+            menu.appendChild(div);
+
+            // Donate
+            const donateItem = document.createElement('div');
+            donateItem.className = 'folder-option-item';
+            donateItem.innerHTML = `${Icons.coffee} Buy me a coffee`;
+            donateItem.addEventListener('click', () => {
+                const modal = new DonationModal();
+                modal.show();
+                menu.remove();
+            });
+            menu.appendChild(donateItem);
 
             btn.parentNode.appendChild(menu);
 
